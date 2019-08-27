@@ -32,14 +32,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.junit.Test;
 
+import java.util.Random;
+
 import static io.restassured.RestAssured.given;
 import static org.apache.http.HttpStatus.SC_CREATED;
 import static org.apache.http.HttpStatus.SC_OK;
 
 public class Lesson17Test {
     private static Account account;
-
-    private static int counter = 2;
 
     @Test
     public void postUserTest() throws JsonProcessingException {
@@ -52,8 +52,8 @@ public class Lesson17Test {
     }
 
     @Test
-    public void removeUserByName() {
-        String url = "http://localhost:8090/user/removeUser/Bob";
+    public void removeUserTest() throws JSONException,JsonProcessingException {
+        String url = "http://localhost:8090/user/removeUser/"+getRandomExistingUserName();
         RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
         Response response = requestSpecification.delete(url);
         response.prettyPrint();
@@ -63,41 +63,19 @@ public class Lesson17Test {
     }
 
     @Test
-    public void postBookByNameAndRemoveBook() throws JsonProcessingException, JSONException {
-        ObjectMapper mapper = new ObjectMapper();
-        String url = "http://localhost:8090/Bob/books";
-        Book book = new Book(account, "Anna Karenina", "Leo Tolstoy", "description");
-        RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(book));
-        Response response = requestSpecification.post(url);
+    public void postBookTest() throws JsonProcessingException, JSONException {
+        Response response = postRandomBookToUser(getRandomExistingUserName());
         response.prettyPrint();
         response.then()
                 .statusCode(SC_CREATED)
-                .log();
-        url = "http://localhost:8090/Bob/books/removeBook/" + (Integer.parseInt(getLastId()) + 1);
-        counter = counter + 2;
-        requestSpecification = given().contentType(ContentType.JSON);
-        response = requestSpecification.delete(url);
-        response.prettyPrint();
-        response.then()
-                .statusCode(SC_OK)
                 .log();
     }
 
     @Test
-    public void deleteBookByName() throws JsonProcessingException, JSONException {
-        ObjectMapper mapper = new ObjectMapper();
-        String url = "http://localhost:8090/Bob/books";
-        Book book = new Book(account, "Anna Karenina", "Leo Tolstoy", "description");
-        RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(book));
-        Response response = requestSpecification.post(url);
-        response.prettyPrint();
-        response.then()
-                .statusCode(SC_CREATED)
-                .log();
-        url = "http://localhost:8090/Bob/books/removeBook/" + (Integer.parseInt(getLastId()) + 1);
-        counter = counter + 2;
-        requestSpecification = given().contentType(ContentType.JSON);
-        response = requestSpecification.delete(url);
+    public void deleteBookTest() throws JsonProcessingException, JSONException {
+        String url = "http://localhost:8090/Bob/books/removeBook/" + (Integer.parseInt(getLastId()) + 1);
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
+        Response response = requestSpecification.delete(url);
         response.prettyPrint();
         response.then()
                 .statusCode(SC_OK)
@@ -105,16 +83,38 @@ public class Lesson17Test {
     }
 
     private String getLastId() throws JSONException {
-        String url = "http://localhost:8090/user/allUsers";
-        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
-        Response response = requestSpecification.get(url);
-        response.prettyPrint();
-        JSONArray jsonResponse = new JSONArray(response.asString());
-        return jsonResponse.getJSONObject(0).getString("id");
+        return getUsersList().getJSONObject(0).getString("id");
     }
 
     private String getRandomUserName(){
         return RandomStringUtils.random(8,true,false);
+    }
+
+    private String getRandomExistingUserName() throws JSONException,JsonProcessingException{
+        JSONArray users = getUsersList();
+        if (users.length()<=0){
+            return "¯ \\ _ (ツ) _ / ¯";
+        }
+        int randomIndex = new Random().nextInt(users.length());
+        return users.getJSONObject(randomIndex).getString("username");
+    }
+
+    private Book generateRandomBook() throws JsonProcessingException,JSONException{
+        account = new Account(getRandomExistingUserName(), "password");
+        return new Book(account,
+                RandomStringUtils.random(4,true,false)
+                        + RandomStringUtils.random(8,true,false),
+                RandomStringUtils.random(4,true,false)
+                        + RandomStringUtils.random(8,true,false),
+                RandomStringUtils.random(14,true,false));
+    }
+
+    private JSONArray getUsersList() throws JSONException{
+        String url = "http://localhost:8090/user/allUsers";
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
+        Response response = requestSpecification.get(url);
+        response.prettyPrint();
+        return new JSONArray(response.asString());
     }
 
     private Response postUserByName(String userName) throws JsonProcessingException{
@@ -123,5 +123,17 @@ public class Lesson17Test {
         account = new Account(userName, "password");
         RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(account));
         return requestSpecification.post(url);
+    }
+
+    private Response postRandomBookToUser(String username) throws JsonProcessingException,JSONException {
+        ObjectMapper mapper = new ObjectMapper();
+        String url = "http://localhost:8090/"+username+"/books";
+        Book book = generateRandomBook();
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(book));
+        return requestSpecification.post(url);
+    }
+
+    private void deleteBookByName(){
+
     }
 }
