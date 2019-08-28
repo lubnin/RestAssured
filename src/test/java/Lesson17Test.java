@@ -25,6 +25,7 @@ import book.Book;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.http.ContentType;
+import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import org.apache.commons.lang3.RandomStringUtils;
@@ -40,6 +41,11 @@ import static org.apache.http.HttpStatus.SC_OK;
 
 public class Lesson17Test {
     private static Account account;
+
+    @Test void e2eTest() throws JsonProcessingException,JSONException{
+        postUserByName("mamkinagordostb");
+
+    }
 
     @Test
     public void postUserTest() throws JsonProcessingException {
@@ -73,7 +79,18 @@ public class Lesson17Test {
 
     @Test
     public void deleteBookTest() throws JsonProcessingException, JSONException {
-        String url = "http://localhost:8090/Bob/books/removeBook/" + (Integer.parseInt(getLastId()) + 1);
+        JSONArray users = getUsersArr();
+        JsonPath jsonPath = getUsersList().jsonPath();
+        String username = "";
+        String bookId = "";
+        for(int i=0;i<users.length();i++){
+            if (jsonPath.getList("books["+i+"]").size()>0){
+                username = jsonPath.get("username["+i+"]");
+                bookId = jsonPath.get("books["+i+"][0].id").toString();
+                break;
+            }
+        }
+        String url = "http://localhost:8090/"+username+"/books/removeBook/" + bookId;
         RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
         Response response = requestSpecification.delete(url);
         response.prettyPrint();
@@ -83,7 +100,7 @@ public class Lesson17Test {
     }
 
     private String getLastId() throws JSONException {
-        return getUsersList().getJSONObject(0).getString("id");
+        return getUsersArr().getJSONObject(0).getString("id");
     }
 
     private String getRandomUserName(){
@@ -91,12 +108,15 @@ public class Lesson17Test {
     }
 
     private String getRandomExistingUserName() throws JSONException,JsonProcessingException{
-        JSONArray users = getUsersList();
+        JSONArray users = getUsersArr();
         if (users.length()<=0){
             return "¯ \\ _ (ツ) _ / ¯";
         }
         int randomIndex = new Random().nextInt(users.length());
         return users.getJSONObject(randomIndex).getString("username");
+    }
+    private String getUserByIndex(int index) throws JSONException{
+        return getUsersArr().getJSONObject(index).getString("username");
     }
 
     private Book generateRandomBook() throws JsonProcessingException,JSONException{
@@ -109,12 +129,14 @@ public class Lesson17Test {
                 RandomStringUtils.random(14,true,false));
     }
 
-    private JSONArray getUsersList() throws JSONException{
+    private JSONArray getUsersArr() throws JSONException{
+        return new JSONArray(getUsersList().asString());
+    }
+
+    private Response getUsersList() throws JSONException{
         String url = "http://localhost:8090/user/allUsers";
         RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
-        Response response = requestSpecification.get(url);
-        response.prettyPrint();
-        return new JSONArray(response.asString());
+        return requestSpecification.get(url);
     }
 
     private Response postUserByName(String userName) throws JsonProcessingException{
