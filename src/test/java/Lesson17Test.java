@@ -48,9 +48,8 @@ public class Lesson17Test {
     public void e2eTest() throws JsonProcessingException,JSONException{
         String username = "mamkinagordostb";
         postUserByName(username).then().statusCode(SC_CREATED);
-        for(int i=0;i<=3;i++){
-            postRandomBookToUser(username).then().statusCode(SC_CREATED);
-        }
+        postRandomBookToUser(username).then().statusCode(SC_CREATED);
+        putRandomBookToUser(username).then().statusCode(SC_CREATED);
         deleteAllBooksFromUser(username);
         removeUserByName(username);
     }
@@ -99,6 +98,15 @@ public class Lesson17Test {
         deleteBookFromUser(username,bookId);
     }
 
+    @Test
+    public void putBookTest() throws JsonProcessingException, JSONException {
+        Response response = putRandomBookToUser(getRandomExistingUserName());
+        response.prettyPrint();
+        response.then()
+                .statusCode(SC_CREATED)
+                .log();
+    }
+
     private String getLastId() throws JSONException {
         return getUsersArr().getJSONObject(0).getString("id");
     }
@@ -110,7 +118,9 @@ public class Lesson17Test {
     private String getRandomExistingUserName() throws JSONException,JsonProcessingException{
         JSONArray users = getUsersArr();
         if (users.length()<=0){
-            return "¯ \\ _ (ツ) _ / ¯";
+            String name = "IWasCreatedInAnAccident";
+            postUserByName(name);
+            return name;
         }
         int randomIndex = new Random().nextInt(users.length());
         return users.getJSONObject(randomIndex).getString("username");
@@ -159,6 +169,14 @@ public class Lesson17Test {
         Book book = generateRandomBook();
         RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(book));
         return requestSpecification.post(url);
+    }
+
+    private Response putRandomBookToUser(String username) throws JsonProcessingException,JSONException{
+        ObjectMapper mapper = new ObjectMapper();
+        String url = "http://localhost:8090/"+username+"/books";
+        Book book = generateRandomBook();
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON).body(mapper.writeValueAsBytes(book));
+        return requestSpecification.put(url);
     }
 
     private void deleteBookFromUser (String username,String bookId){

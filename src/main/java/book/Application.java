@@ -49,7 +49,6 @@ class UserRestController {
                 .fromCurrentRequest().path("")
                 .buildAndExpand(result.getId()).toUri());
         return new ResponseEntity<>(null, httpHeaders, HttpStatus.CREATED);
-
     }
 
     @RequestMapping(value = "/allUsers", method = RequestMethod.GET)
@@ -109,6 +108,19 @@ class BookRestController {
                 }).get();
 
     }
+
+    @RequestMapping(method = RequestMethod.PUT)
+        ResponseEntity<?> createBook(@PathVariable String userId, @RequestBody Book input) {
+            this.validateUser(userId);
+            return this.accountRepository
+                    .findByUsername(userId)
+                    .map(account -> {
+                        bookRepository.save(new Book(account, input.name,
+                                input.author, "description"));
+
+                        return new ResponseEntity<>(null, HttpStatus.CREATED);
+                    }).get();
+        }
 
     @RequestMapping(value = "/{bookId}", method = RequestMethod.GET)
     Optional<Book> readBookmark(@PathVariable String userId, @PathVariable Long bookId) {
