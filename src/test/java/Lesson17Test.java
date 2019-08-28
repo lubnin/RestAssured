@@ -33,6 +33,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import static io.restassured.RestAssured.given;
@@ -42,9 +44,15 @@ import static org.apache.http.HttpStatus.SC_OK;
 public class Lesson17Test {
     private static Account account;
 
-    @Test void e2eTest() throws JsonProcessingException,JSONException{
-        postUserByName("mamkinagordostb");
-
+    @Test
+    public void e2eTest() throws JsonProcessingException,JSONException{
+        String username = "mamkinagordostb";
+        postUserByName(username).then().statusCode(SC_CREATED);
+        for(int i=0;i<=3;i++){
+            postRandomBookToUser(username).then().statusCode(SC_CREATED);
+        }
+        deleteAllBooksFromUser(username);
+        removeUserByName(username);
     }
 
     @Test
@@ -59,9 +67,7 @@ public class Lesson17Test {
 
     @Test
     public void removeUserTest() throws JSONException,JsonProcessingException {
-        String url = "http://localhost:8090/user/removeUser/"+getRandomExistingUserName();
-        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
-        Response response = requestSpecification.delete(url);
+        Response response = removeUserByName(getRandomExistingUserName());
         response.prettyPrint();
         response.then()
                 .statusCode(SC_OK)
@@ -90,13 +96,7 @@ public class Lesson17Test {
                 break;
             }
         }
-        String url = "http://localhost:8090/"+username+"/books/removeBook/" + bookId;
-        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
-        Response response = requestSpecification.delete(url);
-        response.prettyPrint();
-        response.then()
-                .statusCode(SC_OK)
-                .log();
+        deleteBookFromUser(username,bookId);
     }
 
     private String getLastId() throws JSONException {
@@ -147,6 +147,12 @@ public class Lesson17Test {
         return requestSpecification.post(url);
     }
 
+    private Response removeUserByName(String username){
+        String url = "http://localhost:8090/user/removeUser/"+username;
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
+        return requestSpecification.delete(url);
+    }
+
     private Response postRandomBookToUser(String username) throws JsonProcessingException,JSONException {
         ObjectMapper mapper = new ObjectMapper();
         String url = "http://localhost:8090/"+username+"/books";
@@ -155,7 +161,29 @@ public class Lesson17Test {
         return requestSpecification.post(url);
     }
 
-    private void deleteBookByName(){
+    private void deleteBookFromUser (String username,String bookId){
+        String url = "http://localhost:8090/"+username+"/books/removeBook/" + bookId;
+        RequestSpecification requestSpecification = given().contentType(ContentType.JSON);
+        Response response = requestSpecification.delete(url);
+        response.then().statusCode(SC_OK).log();
+        response.prettyPrint();
+    }
 
+    private void deleteAllBooksFromUser (String username) throws JSONException{
+        String bookId;
+        JSONArray users = getUsersArr();
+        JsonPath jsonPath = getUsersList().jsonPath();
+        ArrayList books = new ArrayList();
+        for(int i=0;i<users.length();i++){
+            boolean condition = jsonPath.getJsonObject("["+i+"].username").equals(username);
+            if (condition){
+                books = jsonPath.getJsonObject("["+i+"].books");
+                break;
+            }
+        }
+        for(int i=0;i<books.size();i++){
+            bookId = ((HashMap) books.get(i)).get("id").toString();
+            deleteBookFromUser(username,bookId);
+        }
     }
 }
